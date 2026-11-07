@@ -47,6 +47,286 @@ if ($filtro != '') {
 $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Cobros - ASCARDIO</title>
+    <style>
+        /* --- Variables y Reset --- */
+        :root {
+            --color-bg: #fffaf2;
+            --color-title: #B31B24;
+            --color-text: #2b2b2b;
+            --color-border: #d4ceb8;
+            --color-topbar: #B31B24;
+            --color-card-bg: #ffffff;
+            --color-alert-bg: #f8d7da;
+            --color-alert-border: #f5c6cb;
+            --color-alert-text: #721c24;
+            --color-success-bg: #d4edda;
+            --color-success-border: #c3e6cb;
+            --color-success-text: #155724;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* --- Barra Superior Roja --- */
+        .topbar {
+            background-color: var(--color-topbar);
+            color: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 25px;
+            width: 100%;
+            min-height: 60px;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Logo de la empresa */
+        .topbar-right img {
+            max-height: 45px;
+            width: auto;
+            display: block;
+        }
+
+        /* Botón cerrar sesión */
+        .topbar-btn {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 13px;
+            background-color: rgba(0, 0, 0, 0.15);
+            padding: 6px 12px;
+            border-radius: 2px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: background-color 0.2s;
+        }
+
+        .topbar-btn:hover {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-color: #ffffff;
+        }
+
+        /* --- Estructura Contenedora --- */
+        .container {
+            max-width: 1100px;
+            margin: 25px auto;
+            padding: 0 15px;
+        }
+
+        .page-header {
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--color-border);
+            padding-bottom: 10px;
+        }
+
+        h2, h4 {
+            color: var(--color-title);
+            font-family: Georgia, 'Times New Roman', serif;
+            font-weight: bold;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        h4 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 5px;
+        }
+
+        .text-muted {
+            color: #555555;
+            font-size: 13px;
+        }
+
+        /* --- Alertas --- */
+        .alert {
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .alert-danger {
+            background-color: var(--color-alert-bg);
+            border: 1px solid var(--color-alert-border);
+            color: var(--color-alert-text);
+        }
+
+        .alert-success {
+            background-color: var(--color-success-bg);
+            border: 1px solid var(--color-success-border);
+            color: var(--color-success-text);
+        }
+
+        /* --- Tarjetas --- */
+        .card {
+            background-color: var(--color-card-bg);
+            border: 1px solid var(--color-border);
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* --- Formularios --- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 5px;
+            color: var(--color-text);
+        }
+
+        .form-control {
+            padding: 7px 10px;
+            border: 1px solid #b5b0a1;
+            background-color: #fcfbf9;
+            font-size: 14px;
+            border-radius: 2px;
+            width: 100%;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--color-title);
+            background-color: #ffffff;
+        }
+
+        .form-actions {
+            grid-column: 1 / -1;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background-color: var(--color-title);
+            color: #ffffff;
+            border: 1px solid #801319;
+            padding: 8px 18px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        .btn-primary:hover {
+            background-color: #94151d;
+        }
+
+        /* --- Filtros --- */
+        .filter-container {
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .filter-container strong {
+            margin-right: 8px;
+        }
+
+        .filter-link {
+            color: var(--color-title);
+            text-decoration: none;
+            margin-right: 8px;
+            padding: 3px 8px;
+            border: 1px solid var(--color-border);
+            background-color: #fff;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        .filter-link:hover {
+            background-color: var(--color-title);
+            color: #ffffff;
+            border-color: var(--color-title);
+        }
+
+        /* --- Tablas --- */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background-color: #ffffff;
+        }
+
+        .table th,
+        .table td {
+            border: 1px solid var(--color-border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .table th {
+            background-color: #f2ebd9;
+            color: var(--color-text);
+            font-size: 13px;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background-color: #faf6ee;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f1e9d8;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<div class="topbar">
+    <div class="topbar-left"></div>
+    <a href="../index.php?page=login" class="btn btn-danger mt-3">Cerrar Sesión</a>
+</div>
+<div class="topbar-right">
+    <img src="logo-ascardio.png" alt="ASCARDIO" class="system-logo" style="height: 40px; width: auto;">
+</div>
+</div>
+
+<body>
 <div class="container mt-4">
     <h2>Módulo de Gestión de Cobros - ASCARDIO</h2>
     <p class="text-muted">Control de cuotas mensuales de afiliación, servicios médicos y ambulancia[cite: 7].</p>
@@ -111,7 +391,7 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
                     <th>Cédula</th>
                     <th>Detalles / Método de Pago</th>
                     <th>Fecha de Registro</th>
-                    <?php if($_SESSION['id_rol'] == 1): ?>
+                    <?php if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1): ?>
                         <th>Responsable (ID)</th>
                     <?php endif; ?>
                 </tr>
@@ -125,13 +405,13 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
                             <td><?php echo $row['cedula_identidad']; ?></td>
                             <td><?php echo $row['datos_contacto']; ?></td>
                             <td><?php echo $row['fecha_registro']; ?></td>
-                            
+
                             <td>
                                 <?php
-                            if($_SESSION['id_rol'] == 1) {
-                                echo "-------- " . $row['id_usuario_responsable'];
-                            }
-                            ?>
+                                if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
+                                    echo $row['id_usuario_responsable'];
+                                }
+                                ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -145,11 +425,9 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </div>
 
-<a href="../index.php?page=login" class="btn btn-danger mt-3">Cerrar Sesión</a>
-
 <?php
 
-if ($_SESSION['id_rol'] == 1) {
+if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
     echo "<a href='../index.php?page=admin' class='btn btn-secondary mt-3'>Ir al Panel de Administración</a>";
 }
 

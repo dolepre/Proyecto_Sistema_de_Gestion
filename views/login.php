@@ -3,23 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../assets/login.css">
     <title>Login</title>
 
 </head>
 <body>
-    <h1>Login Page</h1>
+    <div class="login-container">
+    <h1>Login</h1>
     
-    <form action="controller/process_login.php" method="post">
+    <form action="../controller/process_login.php" method="post">
         <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required><br><br>
+        <input type="text" id="username" name="username" required>
         
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required><br><br>
+        <input type="password" id="password" name="password" required>
         
         <button type="submit">Login</button>
     </form>
 
-    <a href="index.php?page=register">Don't have an account? Register here.</a>
+    <a href="../index.php?page=register" class="register-link">No tienes una cuenta? Registrate aqui.</a>
+
+    </div>
 
 </body>
 </html>
