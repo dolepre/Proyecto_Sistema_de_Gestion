@@ -1,0 +1,132 @@
+/* Importar una fuente moderna (opcional pero recomendado) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+/* Variables de color basadas en tu diseño */
+:root {
+    --color-rojo: #B31B24; /* Rojo aproximado del logo */
+    --color-fondo: #fffaf2; /* Tu fondo crema */
+    --color-texto: #333333;
+    --color-borde: #e0dcd3;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    /* Aquí llamas a la imagen. Recuerda la ruta ../assets/img/ */
+    background-image: url('../assets/img/Fondo_login.png'); 
+    background-size: cover; /* Hace que la imagen cubra toda la pantalla */
+    background-position: center; /* Centra la imagen */
+    background-repeat: no-repeat; /* Evita que la imagen se repita */
+    background-attachment: fixed; /* Hace que el fondo no se mueva al hacer scroll */
+
+    background-color: var(--color-fondo);
+    color: var(--color-texto);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Ocupa toda la altura de la pantalla */
+    padding: 20px;
+}
+
+/* --- Animación Fade In Down --- */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-40px); /* Empieza 40px más arriba */
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0); /* Termina en su posición original */
+    }
+}
+
+/* Contenedor principal del formulario */
+.login-container {
+    background-color: #ffffff; /* Fondo blanco para resaltar sobre el crema */
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Sombra elegante */
+    width: 100%;
+    max-width: 400px;
+    text-align: center; /* <--- ESTO CENTRA EL TÍTULO Y EL ENLACE */
+    animation: fadeInDown 0.8s ease-out forwards;
+}
+
+.login-container h1 {
+    color: var(--color-rojo);
+    margin-bottom: 30px;
+    font-size: 40px;
+    font-weight: 600;
+}
+
+/* Estilos de los campos del formulario */
+form {
+    display: flex;
+    flex-direction: column;
+    text-align: left; /* <--- ESTO MANTIENE LOS LABELS E INPUTS A LA IZQUIERDA */
+}
+
+label {
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-texto);
+}
+
+input[type="text"],
+input[type="password"] {
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border: 1px solid var(--color-borde);
+    border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+/* Efecto cuando haces clic en un input */
+input[type="text"]:focus,
+input[type="password"]:focus {
+    border-color: var(--color-rojo);
+}
+
+/* El botón de Login */
+button[type="submit"] {
+    background-color: var(--color-rojo);
+    color: white;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 10px;
+}
+
+/* Efecto al pasar el mouse por el botón */
+button[type="submit"]:hover {
+    background-color: #8c141b; 
+}
+
+/* Enlace de registro */
+.register-link {
+    display: block;
+    margin-top: 35px; 
+    font-size: 14px;
+    color: #666;
+    text-decoration: none;
+    transition: color 0.3s ease;
+    text-align: center; 
+}
+
+.register-link:hover {
+    color: var(--color-rojo);
+    text-decoration: underline;
+}
