@@ -3,6 +3,8 @@
 session_start();
 require_once "../db/conexion.php"; // Ajusta la ruta si es necesario
 
+$estado_transaccion = ""; // Puede ser 'exito', 'error' o ''
+
 // Procesar el formulario si se envía por POST
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['registrar_cobro'])) {
     $id_responsable = $_SESSION['id_usuario'] ?? 1; // ID del cajero logueado
@@ -14,36 +16,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['registrar_cobro'])) {
 
     if (!empty($nombres) && !empty($cedula) && !empty($monto)) {
         try {
-            // Guardamos el método de pago en 'datos_contacto'
-            $sql = "INSERT INTO entidad_gestion (id_usuario_responsable, nombres, apellidos, cedula_identidad, datos_contacto, fecha_registro) 
-                    VALUES (:resp, :nombres, :apellidos, :cedula, :pago, NOW())";
-            $stmt = $conexion->prepare($sql);
-            $stmt->execute([
-                'resp' => $id_responsable,
-                'nombres' => $nombres,
-                'apellidos' => $apellidos,
-                'cedula' => $cedula,
-                'pago' => "$metodo_pago - Monto: $$monto"
-            ]);
-            $mensaje = "¡Cobro registrado con éxito!";
+            // 1. Verificar si la cédula ya existe en la base de datos
+            $sql_check = "SELECT nombres, apellidos FROM entidad_gestion WHERE cedula_identidad = :cedula LIMIT 1";
+            $stmt_check = $conexion->prepare($sql_check);
+            $stmt_check->execute(['cedula' => $cedula]);
+            $persona_existente = $stmt_check->fetch(PDO::FETCH_ASSOC);
+
+            $permitir_registro = true;
+
+            if ($persona_existente) {
+                // 2. Si la cédula ya existe, validamos que los nombres y apellidos coincidan
+                if (strcasecmp(trim($persona_existente['nombres']), $nombres) !== 0 || 
+                    strcasecmp(trim($persona_existente['apellidos']), $apellidos) !== 0) {
+                    $error = "Error: La cédula <b>$cedula</b> ya está registrada a nombre de otra persona (" . $persona_existente['nombres'] . " " . $persona_existente['apellidos'] . ").";
+                    $permitir_registro = false;
+                }
+            }
+
+            // 3. Si pasa la validación (es la misma persona o es una cédula nueva), insertamos el cobro
+            if ($permitir_registro) {
+                $sql = "INSERT INTO entidad_gestion (id_usuario_responsable, nombres, apellidos, cedula_identidad, datos_contacto, fecha_registro) 
+                        VALUES (:resp, :nombres, :apellidos, :cedula, :pago, NOW())";
+                $stmt = $conexion->prepare($sql);
+                $stmt->execute([
+                    'resp' => $id_responsable,
+                    'nombres' => $nombres,
+                    'apellidos' => $apellidos,
+                    'cedula' => $cedula,
+                    'pago' => "$metodo_pago - Monto: $$monto"
+                ]);
+                $mensaje = "¡Cobro registrado con éxito!";
+                $estado_transaccion = "exito";
+            } else {
+                $estado_transaccion = "error";
+            }
         } catch (PDOException $e) {
-            $error = "Error al registrar: " . $e->getMessage();
+            $error = "Error al registrar el cobro: " . $e->getMessage();
+            $estado_transaccion = "error";
         }
     } else {
         $error = "Por favor, complete los campos obligatorios.";
+        $estado_transaccion = "error";
     }
 }
 
-// Obtener los registros de la base de datos para mostrarlos en la tabla
-$filtro = $_GET['filtro'] ?? '';
-if ($filtro != '') {
-    $sql_sel = "SELECT * FROM entidad_gestion WHERE datos_contacto LIKE :filtro ORDER BY fecha_registro DESC";
-    $stmt_sel = $conexion->prepare($sql_sel);
-    $stmt_sel->execute(['filtro' => "%$filtro%"]);
-} else {
-    $sql_sel = "SELECT * FROM entidad_gestion ORDER BY fecha_registro DESC";
-    $stmt_sel = $conexion->query($sql_sel);
-}
+// Obtener todos los registros para la tabla
+$sql_sel = "SELECT * FROM entidad_gestion ORDER BY fecha_registro DESC";
+$stmt_sel = $conexion->query($sql_sel);
 $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -108,41 +127,16 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
             gap: 10px;
         }
 
-        /* Logo de la empresa */
         .topbar-right img {
             max-height: 45px;
             width: auto;
             display: block;
         }
 
-        /* Botón cerrar sesión */
-        .topbar-btn {
-            color: #ffffff;
-            text-decoration: none;
-            font-size: 13px;
-            background-color: rgba(0, 0, 0, 0.15);
-            padding: 6px 12px;
-            border-radius: 2px;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            transition: background-color 0.2s;
-        }
-
-        .topbar-btn:hover {
-            background-color: rgba(0, 0, 0, 0.3);
-            border-color: #ffffff;
-        }
-
-        /* --- Estructura Contenedora --- */
         .container {
             max-width: 1100px;
             margin: 25px auto;
             padding: 0 15px;
-        }
-
-        .page-header {
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--color-border);
-            padding-bottom: 10px;
         }
 
         h2, h4 {
@@ -168,7 +162,6 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
             font-size: 13px;
         }
 
-        /* --- Alertas --- */
         .alert {
             padding: 10px 15px;
             margin-bottom: 20px;
@@ -188,7 +181,6 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
             color: var(--color-success-text);
         }
 
-        /* --- Tarjetas --- */
         .card {
             background-color: var(--color-card-bg);
             border: 1px solid var(--color-border);
@@ -197,7 +189,6 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
-        /* --- Formularios --- */
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -231,11 +222,7 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
             background-color: #ffffff;
         }
 
-        .form-actions {
-            grid-column: 1 / -1;
-            margin-top: 10px;
-        }
-
+        /* --- Estilos y Animación del Botón --- */
         .btn-primary {
             background-color: var(--color-title);
             color: #ffffff;
@@ -245,40 +232,28 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
             font-weight: bold;
             cursor: pointer;
             border-radius: 2px;
+            transition: all 0.4s ease-in-out; /* Animación suave */
         }
 
         .btn-primary:hover {
             background-color: #94151d;
         }
 
-        /* --- Filtros --- */
-        .filter-container {
-            margin-bottom: 15px;
-            font-size: 13px;
+        /* Clases dinámicas para el éxito o error con animación de colores invertidos */
+        .btn-primary.anim-exito {
+            background-color: #ffffff !important;
+            color: #155724 !important;
+            border-color: #155724 !important;
+            transform: scale(1.05);
         }
 
-        .filter-container strong {
-            margin-right: 8px;
+        .btn-primary.anim-error {
+            background-color: #ffffff !important;
+            color: #721c24 !important;
+            border-color: #721c24 !important;
+            transform: scale(1.05);
         }
 
-        .filter-link {
-            color: var(--color-title);
-            text-decoration: none;
-            margin-right: 8px;
-            padding: 3px 8px;
-            border: 1px solid var(--color-border);
-            background-color: #fff;
-            border-radius: 2px;
-            display: inline-block;
-        }
-
-        .filter-link:hover {
-            background-color: var(--color-title);
-            color: #ffffff;
-            border-color: var(--color-title);
-        }
-
-        /* --- Tablas --- */
         .table-responsive {
             overflow-x: auto;
         }
@@ -314,22 +289,79 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
         .text-center {
             text-align: center;
         }
+
+        .btnAdmin {
+            background-color: #721c24;
+            color: #ffffff;
+            border: 1px solid #721c24;
+            padding: 8px 18px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 2px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 15px;
+        }
+
+        .btnAdmin:hover {
+            background-color: #ffffff;
+            color: #721c24;
+            border-color: #721c24;
+        }
+
+        .btnCerrar {
+            background-color: #B31B24;
+            color: #ffffff;
+            border: 1px solid #801319;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 2px;
+            text-decoration: none;
+        }
+
+        .btnCerrar:hover {
+            background-color: #ffeef0;
+            color: #B31B24;
+            border-color: #B31B24;
+        }
+
+        .filter-link {
+            color: var(--color-title);
+            font-weight: bold;
+            padding: 5px 10px;
+            background-color: #fff7f8;
+            text-decoration: none;
+            border: #721c24 1px solid;
+            margin-right: 10px;
+            font-size: 13px;
+            border-radius: 2px;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .filter-link.active, .filter-link:hover {
+            background-color: #721c24;
+            color: #ffffff;
+        }
     </style>
 </head>
+<body>
 
 <div class="topbar">
-    <div class="topbar-left"></div>
-    <a href="../index.php?page=login" class="btn btn-danger mt-3">Cerrar Sesión</a>
-</div>
-<div class="topbar-right">
-    <img src="logo-ascardio.png" alt="ASCARDIO" class="system-logo" style="height: 40px; width: auto;">
-</div>
+    <div class="topbar-left">
+        <a href="../index.php?page=login" class="btnCerrar">Cerrar Sesión</a>
+    </div>
+    <div class="topbar-right">
+        <img src="../assets/img/logo-ascardio.png" alt="ASCARDIO" class="system-logo" style="height: 40px; width: auto; background-color: #ffefef; border-radius: 4px; padding: 2px;">
+    </div>
 </div>
 
-<body>
 <div class="container mt-4">
     <h2>Módulo de Gestión de Cobros - ASCARDIO</h2>
-    <p class="text-muted">Control de cuotas mensuales de afiliación, servicios médicos y ambulancia[cite: 7].</p>
+    <p class="text-muted">Control de cuotas mensuales de afiliación, servicios médicos y ambulancia. <strong>Bienvenido, <?php echo $_SESSION['username']; ?>. ID: <?php echo $_SESSION['id_usuario']; ?></strong></p>
 
     <?php if (isset($mensaje)): ?>
         <div class="alert alert-success"><?php echo $mensaje; ?></div>
@@ -342,24 +374,24 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
     <div class="card p-4 mb-4 shadow-sm">
         <h4>Registrar Nueva Transacción</h4>
         <form action="#" method="POST">
-            <div class="row">
-                <div class="col-md-3 mb-3">
+            <div class="form-grid">
+                <div class="form-group">
                     <label>Nombres del Paciente/Afiliado:</label>
                     <input type="text" name="nombres" class="form-control" required>
                 </div>
-                <div class="col-md-3 mb-3">
+                <div class="form-group">
                     <label>Apellidos:</label>
                     <input type="text" name="apellidos" class="form-control">
                 </div>
-                <div class="col-md-2 mb-3">
+                <div class="form-group">
                     <label>Cédula:</label>
                     <input type="text" name="cedula_identidad" class="form-control" maxlength="8" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
                 </div>
-                <div class="col-md-2 mb-3">
+                <div class="form-group">
                     <label>Monto ($):</label>
                     <input type="number" step="0.01" name="monto" class="form-control" required>
                 </div>
-                <div class="col-md-2 mb-3">
+                <div class="form-group">
                     <label>Método de Pago:</label>
                     <select name="metodo_pago" class="form-control" required>
                         <option value="Efectivo">Efectivo</option>
@@ -368,23 +400,25 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
                     </select>
                 </div>
             </div>
-            <button type="submit" name="registrar_cobro" class="btn btn-primary">Registrar Cobro</button>
+            <div style="margin-top: 15px;">
+                <button type="submit" name="registrar_cobro" id="btnRegistrar" class="btn-primary">Registrar Cobro</button>
+            </div>
         </form>
     </div>
 
-    <!-- Filtros Dinámicos (Requerimiento del informe) -->
-    <div class="mb-3">
+    <!-- Filtros Dinámicos con JS -->
+    <div class="filters mb-3">
         <strong>Filtrar por método: </strong>
-        <a href="#" class="btn btn-sm btn-secondary">Todos</a>
-        <a href="#" class="btn btn-sm btn-success">Efectivo</a>
-        <a href="#" class="btn btn-sm btn-info">Transferencias</a>
-        <a href="#" class="btn btn-sm btn-warning">Pago Móvil</a>
+        <button class="filter-link active" data-filtro="todos">Todos</button>
+        <button class="filter-link" data-filtro="Efectivo">Efectivo</button>
+        <button class="filter-link" data-filtro="Transferencia">Transferencias</button>
+        <button class="filter-link" data-filtro="Pago Móvil">Pago Móvil</button>
     </div>
 
     <!-- Tabla de Registros -->
     <div class="table-responsive">
-        <table class="table table-bordered table-striped">
-            <thead class="table-dark">
+        <table class="table table-bordered table-striped" id="tablaRegistros">
+            <thead>
                 <tr>
                     <th>ID</th>
                     <th>Nombres y Apellidos</th>
@@ -399,25 +433,20 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
             <tbody>
                 <?php if (count($registros) > 0): ?>
                     <?php foreach ($registros as $row): ?>
-                        <tr>
+                        <tr data-metodo="<?php echo htmlspecialchars($row['datos_contacto']); ?>">
                             <td><?php echo $row['id_registro']; ?></td>
-                            <td><?php echo $row['nombres'] . " " . $row['apellidos']; ?></td>
-                            <td><?php echo $row['cedula_identidad']; ?></td>
-                            <td><?php echo $row['datos_contacto']; ?></td>
+                            <td><?php echo htmlspecialchars($row['nombres'] . " " . $row['apellidos']); ?></td>
+                            <td><?php echo htmlspecialchars($row['cedula_identidad']); ?></td>
+                            <td><?php echo htmlspecialchars($row['datos_contacto']); ?></td>
                             <td><?php echo $row['fecha_registro']; ?></td>
-
-                            <td>
-                                <?php
-                                if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
-                                    echo $row['id_usuario_responsable'];
-                                }
-                                ?>
-                            </td>
+                            <?php if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1): ?>
+                                <td><?php echo $row['id_usuario_responsable']; ?></td>
+                            <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr>
-                        <td colspan="5" class="text-center">No hay registros de cobros encontrados.</td>
+                    <tr id="filaVacia">
+                        <td colspan="6" class="text-center">No hay registros de cobros encontrados.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -426,9 +455,64 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
 </div>
 
 <?php
-
 if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
-    echo "<a href='../index.php?page=admin' class='btn btn-secondary mt-3'>Ir al Panel de Administración</a>";
+    echo "<div style='max-width: 1100px; margin: 0 auto;'><a href='../index.php?page=admin' class='btnAdmin'>Ir al Panel de Administración</a></div>";
 }
-
 ?>
+
+<!-- Script de JavaScript para Filtrar la Tabla y Animar el Botón -->
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // --- 1. Animación del botón según el estado de PHP ---
+        const estadoPHP = "<?php echo $estado_transaccion; ?>";
+        const btnRegistrar = document.getElementById("btnRegistrar");
+
+        if (estadoPHP === "exito") {
+            btnRegistrar.classList.add("anim-exito");
+            btnRegistrar.innerHTML = "✔ ¡Registrado!";
+            
+            // Regresar a la normalidad después de 2.5 segundos
+            setTimeout(() => {
+                btnRegistrar.classList.remove("anim-exito");
+                btnRegistrar.innerHTML = "Registrar Cobro";
+            }, 2500);
+        } else if (estadoPHP === "error") {
+            btnRegistrar.classList.add("anim-error");
+            btnRegistrar.innerHTML = "✕ Error en registro";
+            
+            // Regresar a la normalidad después de 2.5 segundos
+            setTimeout(() => {
+                btnRegistrar.classList.remove("anim-error");
+                btnRegistrar.innerHTML = "Registrar Cobro";
+            }, 2500);
+        }
+
+        // --- 2. Lógica para Filtrar la Tabla en Tiempo Real ---
+        const botonesFiltro = document.querySelectorAll(".filter-link");
+        const filas = document.querySelectorAll("#tablaRegistros tbody tr[data-metodo]");
+
+        botonesFiltro.forEach(boton => {
+            boton.addEventListener("click", (e) => {
+                e.preventDefault();
+
+                botonesFiltro.forEach(b => b.classList.remove("active"));
+                boton.classList.add("active");
+
+                const filtro = boton.getAttribute("data-filtro");
+
+                filas.forEach(fila => {
+                    const textoMetodo = fila.getAttribute("data-metodo");
+
+                    if (filtro === "todos" || textoMetodo.includes(filtro)) {
+                        fila.style.display = ""; 
+                    } else {
+                        fila.style.display = "none"; 
+                    }
+                });
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
