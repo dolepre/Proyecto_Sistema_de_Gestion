@@ -1,20 +1,35 @@
 <?php
-// Asegurarnos de incluir la conexión y el controlador de gestión
-session_start();
-require_once "../db/conexion.php"; // Ajusta la ruta si es necesario
+if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . '/../db/conexion.php';
 
+// Carpeta base del proyecto: los enlaces funcionan entres por index.php o directo desde views/
+$BASE = preg_replace('#/views$#', '', rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/')) . '/';
+
+// Sin sesión iniciada no se puede ver esta página
+if (!isset($_SESSION['id_usuario'])) { header('Location: ' . $BASE . 'index.php?page=login'); exit; }
+
+$METODOS = ['Efectivo', 'Transferencia', 'Pago Móvil'];
 $estado_transaccion = ""; // Puede ser 'exito', 'error' o ''
 
 // Procesar el formulario si se envía por POST
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['registrar_cobro'])) {
-    $id_responsable = $_SESSION['id_usuario'] ?? 1; // ID del cajero logueado
-    $nombres = trim($_POST['nombres']);
-    $apellidos = trim($_POST['apellidos']);
-    $cedula = trim($_POST['cedula_identidad']);
-    $monto = trim($_POST['monto']);
-    $metodo_pago = $_POST['metodo_pago']; // Efectivo, Transferencia o Pago Móvil
+    $id_responsable = (int)$_SESSION['id_usuario']; // ID del cajero logueado
+    $nombres = trim($_POST['nombres'] ?? '');
+    $apellidos = trim($_POST['apellidos'] ?? '');
+    $cedula = trim($_POST['cedula_identidad'] ?? '');
+    $monto = trim($_POST['monto'] ?? '');
+    $metodo_pago = $_POST['metodo_pago'] ?? '';
 
-    if (!empty($nombres) && !empty($cedula) && !empty($monto)) {
+    if ($nombres === '' || $cedula === '' || $monto === '') {
+        $error = "Por favor, complete los campos obligatorios.";
+        $estado_transaccion = "error";
+    } elseif (!preg_match('/^\d{6,10}$/', $cedula)) {
+        $error = "La cédula debe tener entre 6 y 10 dígitos.";
+        $estado_transaccion = "error";
+    } elseif (!is_numeric($monto) || (float)$monto <= 0 || !in_array($metodo_pago, $METODOS, true)) {
+        $error = "Revise que el monto sea mayor a 0 y que el método de pago sea válido.";
+        $estado_transaccion = "error";
+    } else {
         try {
             // 1. Verificar si la cédula ya existe en la base de datos
             $sql_check = "SELECT nombres, apellidos FROM entidad_gestion WHERE cedula_identidad = :cedula LIMIT 1";
@@ -26,16 +41,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['registrar_cobro'])) {
 
             if ($persona_existente) {
                 // 2. Si la cédula ya existe, validamos que los nombres y apellidos coincidan
-                if (strcasecmp(trim($persona_existente['nombres']), $nombres) !== 0 || 
+                if (strcasecmp(trim($persona_existente['nombres']), $nombres) !== 0 ||
                     strcasecmp(trim($persona_existente['apellidos']), $apellidos) !== 0) {
-                    $error = "Error: La cédula <b>$cedula</b> ya está registrada a nombre de otra persona (" . $persona_existente['nombres'] . " " . $persona_existente['apellidos'] . ").";
+                    $error = "Error: La cédula <b>" . htmlspecialchars($cedula) . "</b> ya está registrada a nombre de otra persona ("
+                           . htmlspecialchars($persona_existente['nombres'] . " " . $persona_existente['apellidos']) . ").";
                     $permitir_registro = false;
                 }
             }
 
             // 3. Si pasa la validación (es la misma persona o es una cédula nueva), insertamos el cobro
             if ($permitir_registro) {
-                $sql = "INSERT INTO entidad_gestion (id_usuario_responsable, nombres, apellidos, cedula_identidad, datos_contacto, fecha_registro) 
+                $sql = "INSERT INTO entidad_gestion (id_usuario_responsable, nombres, apellidos, cedula_identidad, datos_contacto, fecha_registro)
                         VALUES (:resp, :nombres, :apellidos, :cedula, :pago, NOW())";
                 $stmt = $conexion->prepare($sql);
                 $stmt->execute([
@@ -43,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['registrar_cobro'])) {
                     'nombres' => $nombres,
                     'apellidos' => $apellidos,
                     'cedula' => $cedula,
-                    'pago' => "$metodo_pago - Monto: $$monto"
+                    'pago' => $metodo_pago . " - Monto: $" . number_format((float)$monto, 2, '.', '')
                 ]);
                 $mensaje = "¡Cobro registrado con éxito!";
                 $estado_transaccion = "exito";
@@ -51,12 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['registrar_cobro'])) {
                 $estado_transaccion = "error";
             }
         } catch (PDOException $e) {
-            $error = "Error al registrar el cobro: " . $e->getMessage();
+            $error = "No se pudo registrar el cobro. Intente de nuevo.";
             $estado_transaccion = "error";
         }
-    } else {
-        $error = "Por favor, complete los campos obligatorios.";
-        $estado_transaccion = "error";
     }
 }
 
@@ -352,16 +365,16 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
 
 <div class="topbar">
     <div class="topbar-left">
-        <a href="../index.php?page=login" class="btnCerrar">Cerrar Sesión</a>
+        <a href="<?php echo $BASE; ?>index.php?page=login" class="btnCerrar">Cerrar Sesión</a>
     </div>
     <div class="topbar-right">
-        <img src="../assets/img/logo-ascardio.png" alt="ASCARDIO" class="system-logo" style="height: 40px; width: auto; background-color: #ffefef; border-radius: 4px; padding: 2px;">
+        <img src="<?php echo $BASE; ?>assets/img/logo-ascardio.png" alt="ASCARDIO" class="system-logo" style="height: 40px; width: auto; background-color: #ffefef; border-radius: 4px; padding: 2px;">
     </div>
 </div>
 
 <div class="container mt-4">
     <h2>Módulo de Gestión de Cobros - ASCARDIO</h2>
-    <p class="text-muted">Control de cuotas mensuales de afiliación, servicios médicos y ambulancia. <strong>Bienvenido, <?php echo $_SESSION['username']; ?>. ID: <?php echo $_SESSION['id_usuario']; ?></strong></p>
+    <p class="text-muted">Control de cuotas mensuales de afiliación, servicios médicos y ambulancia. <strong>Bienvenido, <?php echo htmlspecialchars($_SESSION['username'] ?? ''); ?>. ID: <?php echo (int)$_SESSION['id_usuario']; ?></strong></p>
 
     <?php if (isset($mensaje)): ?>
         <div class="alert alert-success"><?php echo $mensaje; ?></div>
@@ -389,7 +402,7 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
                 </div>
                 <div class="form-group">
                     <label>Monto ($):</label>
-                    <input type="number" step="0.01" name="monto" class="form-control" required>
+                    <input type="number" step="0.01" min="0.01" name="monto" class="form-control" required>
                 </div>
                 <div class="form-group">
                     <label>Método de Pago:</label>
@@ -454,11 +467,9 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </div>
 
-<?php
-if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
-    echo "<div style='max-width: 1100px; margin: 0 auto;'><a href='../index.php?page=admin' class='btnAdmin'>Ir al Panel de Administración</a></div>";
-}
-?>
+<?php if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1): ?>
+    <div style="max-width: 1100px; margin: 0 auto;"><a href="<?php echo $BASE; ?>index.php?page=admin" class="btnAdmin">Ir al Panel de Administración</a></div>
+<?php endif; ?>
 
 <!-- Script de JavaScript para Filtrar la Tabla y Animar el Botón -->
 <script>
@@ -470,7 +481,7 @@ if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
         if (estadoPHP === "exito") {
             btnRegistrar.classList.add("anim-exito");
             btnRegistrar.innerHTML = "✔ ¡Registrado!";
-            
+
             // Regresar a la normalidad después de 2.5 segundos
             setTimeout(() => {
                 btnRegistrar.classList.remove("anim-exito");
@@ -479,7 +490,7 @@ if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
         } else if (estadoPHP === "error") {
             btnRegistrar.classList.add("anim-error");
             btnRegistrar.innerHTML = "✕ Error en registro";
-            
+
             // Regresar a la normalidad después de 2.5 segundos
             setTimeout(() => {
                 btnRegistrar.classList.remove("anim-error");
@@ -504,9 +515,9 @@ if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1) {
                     const textoMetodo = fila.getAttribute("data-metodo");
 
                     if (filtro === "todos" || textoMetodo.includes(filtro)) {
-                        fila.style.display = ""; 
+                        fila.style.display = "";
                     } else {
-                        fila.style.display = "none"; 
+                        fila.style.display = "none";
                     }
                 });
             });
