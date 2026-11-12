@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="assets/login.css">
+    <link rel="stylesheet" href="../assets/login.css">
     <title>Login</title>
 
 </head>
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 ?>
 
-    <a href="index.php?page=register" class="register-link">No tienes una cuenta? Registrate aqui.</a>
+    <a href="../index.php?page=register" class="register-link">No tienes una cuenta? Registrate aqui.</a>
 
     </div>
 
