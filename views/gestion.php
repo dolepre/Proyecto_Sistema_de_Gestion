@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['registrar_cobro'])) {
                 ]);
                 $mensaje = "¡Cobro actualizado con éxito!";
                 $estado_transaccion = "exito";
+                $modo_edicion = false; // Salir del modo edición después de actualizar
             } else {
                 // 1. Verificar si la cédula ya existe en la base de datos
                 $sql_check = "SELECT nombres, apellidos FROM entidad_gestion WHERE cedula_identidad = :cedula LIMIT 1";
@@ -178,7 +179,7 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
         }
 
         body {
-            background-image: url('../assets/img/Fondo_login.png');
+            background-image: url('<?php echo $BASE; ?>assets/img/Fondo_login.png');
             background-size: cover;
             /* Hace que la imagen cubra toda la pantalla */
             background-position: center;
@@ -549,48 +550,60 @@ $registros = $stmt_sel->fetchAll(PDO::FETCH_ASSOC);
 
         <!-- Tabla de Registros -->
         <div class="table-responsive">
-            <table class="table table-bordered table-striped" id="tablaRegistros">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombres y Apellidos</th>
-                        <th>Cédula</th>
-                        <th>Detalles / Método de Pago</th>
-                        <th>Fecha de Registro</th>
+    <table class="table table-bordered table-striped" id="tablaRegistros">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Nombres y Apellidos</th>
+                <th>Cédula</th>
+                <th>Detalles / Método de Pago</th>
+                <th>Fecha de Registro</th>
+                <?php if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1): ?>
+                    <th>Responsable (ID)</th>
+                <?php endif; ?>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (count($registros) > 0): ?>
+                <?php 
+                
+                $contador = 1; 
+                foreach ($registros as $row): 
+                ?>
+                    <tr data-metodo="<?php echo htmlspecialchars($row['datos_contacto']); ?>">
+                        <!-- 2. Mostramos el número secuencial en lugar del ID real -->
+                        <td><?php echo $contador; ?></td>
+                        
+                        <td><?php echo htmlspecialchars($row['nombres'] . " " . $row['apellidos']); ?></td>
+                        <td><?php echo htmlspecialchars($row['cedula_identidad']); ?></td>
+                        <td><?php echo htmlspecialchars($row['datos_contacto']); ?></td>
+                        <td><?php echo $row['fecha_registro']; ?></td>
+                        
                         <?php if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1): ?>
-                            <th>Responsable (ID)</th>
+                            <td><?php echo $row['id_usuario_responsable']; ?></td>
                         <?php endif; ?>
-                        <th class="text-center">Acciones</th>
+                        
+                        <td class="text-center" style="white-space: nowrap;">
+                            <!-- 3. Los enlaces de acción siguen usando el ID real de la BD ($row['id_registro']) -->
+                            <a href="?accion=editar&id=<?php echo $row['id_registro']; ?>" class="btn-accion-editar">Editar</a>
+                            <a href="?accion=eliminar&id=<?php echo $row['id_registro']; ?>" class="btn-accion-eliminar" onclick="return confirm('¿Estás seguro de que deseas eliminar este registro?');">Eliminar</a>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <?php if (count($registros) > 0): ?>
-                        <?php foreach ($registros as $row): ?>
-                            <tr data-metodo="<?php echo htmlspecialchars($row['datos_contacto']); ?>">
-                                <td><?php echo $row['id_registro']; ?></td>
-                                <td><?php echo htmlspecialchars($row['nombres'] . " " . $row['apellidos']); ?></td>
-                                <td><?php echo htmlspecialchars($row['cedula_identidad']); ?></td>
-                                <td><?php echo htmlspecialchars($row['datos_contacto']); ?></td>
-                                <td><?php echo $row['fecha_registro']; ?></td>
-                                <?php if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1): ?>
-                                    <td><?php echo $row['id_usuario_responsable']; ?></td>
-                                <?php endif; ?>
-                                <td class="text-center" style="white-space: nowrap;">
-                                    <a href="?accion=editar&id=<?php echo $row['id_registro']; ?>" class="btn-accion-editar">Editar</a>
-                                    <a href="?accion=eliminar&id=<?php echo $row['id_registro']; ?>" class="btn-accion-eliminar" onclick="return confirm('¿Estás seguro de que deseas eliminar este registro?');">Eliminar</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr id="filaVacia">
-                            <td colspan="7" class="text-center">No hay registros de cobros encontrados.</td>
-                        </tr>
-                    <?php endif; ?>
+                <?php 
+                    // 4. Incrementamos el contador en cada vuelta del bucle
+                    $contador++; 
+                endforeach; 
+                ?>
+            <?php else: ?>
+                <tr id="filaVacia">
+                    <td colspan="7" class="text-center">No hay registros de cobros encontrados.</td>
+                </tr>
+            <?php endif; ?>
 
-                </tbody>
-            </table>
-        </div>
-    </div>
+        </tbody>
+    </table>
+</div>
 
     <?php if (isset($_SESSION['id_rol']) && $_SESSION['id_rol'] == 1): ?>
         <div style="max-width: 1100px; margin: 0 auto;"><a href="<?php echo $BASE; ?>index.php?page=admin" class="btnAdmin">Ir al Panel de Administración</a></div>

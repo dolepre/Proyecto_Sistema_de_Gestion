@@ -18,7 +18,8 @@
 }
 
 body {
-    background-image: url('../assets/img/Fondo_login.png');
+    
+    background-image: url('assets/img/Fondo_login.png');
     background-size: cover;
     /* Hace que la imagen cubra toda la pantalla */
     background-position: center;
